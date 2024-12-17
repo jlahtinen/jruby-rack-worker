@@ -1,13 +1,15 @@
 source "https://rubygems.org"
 
-gem 'jruby-rack'
+gemspec
+
+gem 'ruby-maven'
+gem 'rake'
 
 group :test do
-  gem 'rake'
-  gem 'test-unit', '~> 2.5.3'
-  gem 'test-unit-context'
-  gem 'mocha'
+  gem 'rspec'
 end
+
+
 
 group :delayed_job do
   if ENV['delayed_job']

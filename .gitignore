@@ -1,8 +1,5 @@
-lib
-out
-build
-nbproject
-build.xml
-catalog.xml
 Gemfile.lock
 src/test/resources/db/delayed.db
+lib/jruby-rack-worker-*.jar
+target
+*.gem

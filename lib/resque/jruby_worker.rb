@@ -323,7 +323,7 @@ module Resque
       if string.nil?
         @procline ||= nil # act as a reader if no string given
       else # avoid setting $0
-        log! @procline = "resque-#{Resque::Version}: #{string}"
+        log! @procline = "resque-#{Resque::VERSION}: #{string}"
       end
     end
 

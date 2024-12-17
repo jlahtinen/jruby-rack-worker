@@ -79,5 +79,23 @@ public class MockRackContext implements RackContext {
     void setLog(OutputStream out) {
         this.log = new PrintStream(out);
     }
+
+    @Override
+    public boolean isEnabled(Level arg0) {
+        // TODO Auto-generated method stub
+        throw new UnsupportedOperationException("Unimplemented method 'isEnabled'");
+    }
+
+    @Override
+    public void log(Level arg0, String arg1) {
+        // TODO Auto-generated method stub
+        throw new UnsupportedOperationException("Unimplemented method 'log'");
+    }
+
+    @Override
+    public void log(Level arg0, String arg1, Throwable arg2) {
+        // TODO Auto-generated method stub
+        throw new UnsupportedOperationException("Unimplemented method 'log'");
+    }
     
 }
