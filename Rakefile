@@ -1,3 +1,8 @@
+unless defined?(JRUBY_VERSION)
+  raise "Hey, we're not running within JRuby my dear !"
+end
+
+require 'ruby-maven'
 
 PROJECT_NAME = 'jruby-rack-worker'
 
@@ -15,10 +20,6 @@ TEST_RESULTS_DIR = File.join(OUT_DIR, 'test-results')
 
 LIB_BASE_DIR = 'lib'
 
-unless defined?(JRUBY_VERSION)
-  raise "Hey, we're not running within JRuby my dear !"
-end
-
 load File.join(RUBY_SRC_DIR, "#{PROJECT_NAME.gsub('-', '/')}", 'version.rb')
 
 def project_version
@@ -29,86 +30,17 @@ def out_jar_path
   "#{OUT_DIR}/#{PROJECT_NAME}_#{project_version}.jar"
 end
 
-require 'ant'
-ant.property :name => "ivy.lib.dir", :value => LIB_BASE_DIR
-
-namespace :ivy do
-
-  ivy_version = '2.2.0'
-  ivy_jar_dir = File.join(LIB_BASE_DIR, 'build')
-  ivy_jar_file = File.join(ivy_jar_dir, 'ivy.jar')
-
-  task :download do
-    mkdir_p ivy_jar_dir
-    ant.get :src => "http://repo1.maven.org/maven2/org/apache/ivy/ivy/#{ivy_version}/ivy-#{ivy_version}.jar",
-      :dest => ivy_jar_file,
-      :usetimestamp => true
-  end
-
-  task :install do
-    Rake::Task["ivy:download"].invoke unless File.exist?(ivy_jar_file)
-
-    ant.path :id => 'ivy.lib.path' do
-      fileset :dir => ivy_jar_dir, :includes => '*.jar'
-    end
-    ant.taskdef :resource => "org/apache/ivy/ant/antlib.xml", :classpathref => "ivy.lib.path"
-  end
-
-  task :clean do
-    rm_rf LIB_BASE_DIR
-  end
-
-end
-
-task :retrieve => :"ivy:install" do
-  ant.retrieve :pattern => "${ivy.lib.dir}/[conf]/[artifact].[type]"
-end
-
-ant.path :id => "main.class.path" do
-  fileset :dir => LIB_BASE_DIR do
-    include :name => 'runtime/*.jar'
-  end
-end
-ant.path :id => "test.class.path" do
-  fileset :dir => LIB_BASE_DIR do
-    include :name => 'test/*.jar'
-  end
-end
-
-task :compile => :retrieve do
-  mkdir_p MAIN_BUILD_DIR
-  ant.javac :destdir => MAIN_BUILD_DIR, :source => '1.5' do
-    src :path => MAIN_SRC_DIR
-    classpath :refid => "main.class.path"
-  end
-end
-
-task :copy_resources do
-  mkdir_p ruby_dest_dir = File.join(MAIN_BUILD_DIR, '') # 'META-INF/jruby_rack_worker'
-  ant.copy :todir => ruby_dest_dir do
-    fileset :dir => RUBY_SRC_DIR do
-      exclude :name => 'jruby_rack_worker.rb' # exclude :name => 'jruby/**'
-    end
-  end
-end
-
 desc "build jar"
-task :jar => [ :compile, :copy_resources ] do
-  ant.jar :destfile => out_jar_path, :basedir => MAIN_BUILD_DIR do
-    manifest do
-      attribute :name => "Built-By", :value => "${user.name}"
-      attribute :name => "Implementation-Title", :value => PROJECT_NAME
-      attribute :name => "Implementation-Version", :value => project_version
-      attribute :name => "Implementation-Vendor", :value => "Karol Bucek"
-      attribute :name => "Implementation-Vendor-Id", :value => "org.kares"
-    end
-  end
+task :jar do
+  RubyMaven.exec('package', '-DskipTests=true')
+
+  mkdir_p MAIN_BUILD_DIR
+  cp Dir["target/*.jar"].first, out_jar_path
 end
 
 desc "build gem"
 task :gem => [ :jar ] do
   warn "building using JRuby: #{JRUBY_VERSION}" if JRUBY_VERSION > '9.0'
-  raise "building on Java > 7" if ENV_JAVA['java.specification.version'] > '1.7'
 
   mkdir_p gem_out = File.join(OUT_DIR, 'gem')
   mkdir_p gem_out_lib = File.join(gem_out, 'lib')
@@ -120,10 +52,9 @@ task :gem => [ :jar ] do
     abort "too many jars! #{jars.map{ |j| File.basename(j) }.inspect}\nrake clean first"
   end
 
-  ant.copy :todir => gem_out_lib do
-    fileset :dir => RUBY_SRC_DIR do
-      include :name => '*.rb'
-      include :name => 'jruby/**/*.rb'
+  %w[*.rb jruby/**/*.rb].each do |glob|
+    Dir[File.join(RUBY_SRC_DIR, glob)].each do |file|
+      cp file, gem_out_lib
     end
   end
 
@@ -159,16 +90,6 @@ task :gem => [ :jar ] do
   end
 end
 
-task :'test:compile' => :compile do
-  mkdir_p TEST_BUILD_DIR
-  ant.javac :destdir => TEST_BUILD_DIR, :source => '1.5' do
-    src :path => TEST_SRC_DIR
-    classpath :refid => "main.class.path"
-    classpath :refid => "test.class.path"
-    classpath { pathelement :path => MAIN_BUILD_DIR }
-  end
-end
-
 task :'bundler:setup' do
   begin
     require 'bundler/setup'
@@ -201,35 +122,13 @@ namespace :test do
     test_files = ENV['TEST'] || File.join(test_files)
     #test_opts = (ENV['TESTOPTS'] || '').split(' ')
     test_files = FileList[test_files].map { |path| path.sub('src/test/ruby/', '') }
-    ruby "-Isrc/main/ruby:src/test/ruby", "-e #{test_files.inspect}.each { |test| require test }"
+    ruby "-Isrc/main/ruby:src/test/ruby", "-e", "#{test_files.inspect}.each { |test| require test }"
   end
 
   desc "run java tests"
-  task :java => :'test:compile' do
-    mkdir_p TEST_RESULTS_DIR
-    ant.junit :fork => true,
-              :haltonfailure => false,
-              :haltonerror => true,
-              :showoutput => true,
-              :printsummary => true do
-
-      classpath :refid => "main.class.path"
-      classpath :refid => "test.class.path"
-      classpath do
-        pathelement :path => MAIN_BUILD_DIR
-        pathelement :path => TEST_BUILD_DIR
-      end
-
-      formatter :type => "xml"
-
-      batchtest :fork => "yes", :todir => TEST_RESULTS_DIR do
-        fileset :dir => TEST_SRC_DIR do
-          include :name => "**/*Test.java"
-        end
-      end
-    end
+  task :java do
+    RubyMaven.exec('verify')
   end
-
 end
 
 desc "run all tests"
@@ -240,4 +139,5 @@ task :default => :test
 desc "clean up"
 task :clean do
   rm_rf OUT_DIR
+  RubyMaven.exec('clean')
 end

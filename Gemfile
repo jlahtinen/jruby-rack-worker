@@ -1,5 +1,6 @@
 source "https://rubygems.org"
 
+gem 'ruby-maven'
 gem 'jruby-rack'
 
 group :test do
