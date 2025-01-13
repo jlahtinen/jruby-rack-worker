@@ -1,8 +1,7 @@
 require File.expand_path('test_helper', File.dirname(__FILE__) + '/..')
+Bundler.require(:delayed_job)
+require 'socket' # delayed_job gem gives hostname when socket is required
 require 'delayed/jruby_worker'
-
-gem_spec = Gem.loaded_specs['delayed_job'] if defined? Gem
-puts "loaded gem 'delayed_job' '#{gem_spec.version.to_s}'" if gem_spec
 
 module Delayed
   class JRubyWorkerTest < Test::Unit::TestCase
@@ -175,65 +174,58 @@ module Delayed
       assert_equal 5, Delayed::Worker.sleep_delay
       assert_equal nil, Delayed::Worker.exit_on_complete if exit_on_cmplt
     end
+    class WithBackendTests < Test::Unit::TestCase
+      def self.startup
+        require 'active_record'
+        require 'active_record/connection_adapters/jdbcsqlite3_adapter'
+        load 'delayed/active_record_schema.rb'
+        #class Delayed::Job < ActiveRecord::Base; end
+        begin
+          require 'delayed_job_active_record' # DJ 3.0+
+          Delayed::Job.reset_column_information
+        rescue LoadError
+          Delayed::Worker.backend = :active_record
+        end
+      end
 
-    begin
+      setup do
+        Delayed::Worker.logger = Logger.new(STDOUT)
+        Delayed::Worker.logger.level = Logger::DEBUG
+        ActiveRecord::Base.logger = Delayed::Worker.logger if $VERBOSE
+        #ActiveRecord::Base.class_eval do
+        #  def self.silence; yield; end # disable silence
+        #end
+      end
 
-      context "with backend" do
+      class TestJob
 
-        def self.startup
-          require 'active_record'
-          require 'active_record/connection_adapters/jdbcsqlite3_adapter'
-          load 'delayed/active_record_schema.rb'
-          #class Delayed::Job < ActiveRecord::Base; end
-          begin
-            require 'delayed_job_active_record' # DJ 3.0+
-            Delayed::Job.reset_column_information
-          rescue LoadError
-            Delayed::Worker.backend = :active_record
-          end
+        def initialize(param)
+          @param = param
         end
 
-        setup do
-          Delayed::Worker.logger = Logger.new(STDOUT)
-          Delayed::Worker.logger.level = Logger::DEBUG
-          ActiveRecord::Base.logger = Delayed::Worker.logger if $VERBOSE
-          #ActiveRecord::Base.class_eval do
-          #  def self.silence; yield; end # disable silence
-          #end
-        end
+        @@performed = nil
 
-        class TestJob
-
-          def initialize(param)
-            @param = param
-          end
-
-          @@performed = nil
-
-          def perform
-            puts "#{self}#perform param = #{@param}"
-            raise "already performed" if @@performed
-            @@performed = @param
-          end
-
-        end
-
-        test "works (integration)" do
-          worker = Delayed::JRubyWorker.new({ :sleep_delay => 0.10 })
-          Delayed::Job.enqueue job = TestJob.new(:huu)
-          Thread.new { worker.start }
-          sleep(0.20)
-          assert ! worker.stop?
-
-          assert_equal :huu, TestJob.send(:class_variable_get, :'@@performed')
-
-          worker.stop
-          sleep(0.15)
-          assert worker.stop?
+        def perform
+          puts "#{self}#perform param = #{@param}"
+          raise "already performed" if @@performed
+          @@performed = @param
         end
 
       end
 
+      test "works (integration)" do
+        worker = Delayed::JRubyWorker.new({ :sleep_delay => 0.10 })
+        Delayed::Job.enqueue job = TestJob.new(:huu)
+        Thread.new { worker.start }
+        sleep(0.20)
+        assert ! worker.stop?
+
+        assert_equal :huu, TestJob.send(:class_variable_get, :'@@performed')
+
+        worker.stop
+        sleep(0.15)
+        assert worker.stop?
+      end
     end
 
     private

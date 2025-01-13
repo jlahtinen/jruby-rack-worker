@@ -3,11 +3,13 @@ source "https://rubygems.org"
 gem 'ruby-maven'
 gem 'jruby-rack'
 
-group :test do
+group :development do
   gem 'rake'
-  gem 'test-unit', '~> 2.5.3'
-  gem 'test-unit-context'
-  gem 'mocha'
+end
+
+group :test do
+  gem 'test-unit'
+  gem 'mocha', require: 'mocha/test_unit'
 end
 
 group :delayed_job do
@@ -25,8 +27,7 @@ group :delayed_job do
       end
     end
   else
-    gem 'delayed_job'
-    gem 'delayed_job_active_record', :require => nil
+    gem 'delayed_job_active_record'
     gem 'delayed_cron_job', :require => nil
   end
   if ENV['activerecord']
@@ -34,7 +35,7 @@ group :delayed_job do
   else
     gem 'activerecord', :require => nil # for tests
   end
-  gem 'activerecord-jdbcsqlite3-adapter', '~> 1.3.20', :require => nil, :platform => :jruby
+  gem 'activerecord-jdbcsqlite3-adapter', '~> 61.3'
 end
 
 group :resque do

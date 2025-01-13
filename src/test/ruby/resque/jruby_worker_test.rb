@@ -1,4 +1,5 @@
 require File.expand_path('test_helper', File.dirname(__FILE__) + '/..')
+Bundler.require(:resque)
 require 'resque/jruby_worker'
 
 gem_spec = Gem.loaded_specs['resque'] if defined? Gem
@@ -338,7 +339,7 @@ module Resque
         redis.connect
       end
 
-      context "with redis" do
+    class WithRedisTests < Test::Unit::TestCase
 
         test "worker exists after it's started" do
           worker = Resque::JRubyWorker.new('foo')

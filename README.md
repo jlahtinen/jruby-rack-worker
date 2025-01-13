@@ -265,20 +265,26 @@ end
 
 ## Build
 
-[JRuby](http://jruby.org) 1.6.8+ is required to build the project.
+[JRuby](http://jruby.org) 9.4.8.0+ is required to build the project.
 
-The build is performed by [rake](http://rake.rubyforge.org) which should be part
-of your JRuby installation, if you're experiencing conflicts with another Ruby and
-it's `rake` executable use `jruby -S rake` instead.
-Besides you will need [ant](http://ant.apache.org/) installed for the Java part.
+Install gems :
+
+    bundle install
 
 Build the *jruby-rack-worker_[VERSION].jar* using :
 
-    rake jar
+    bundle exec rake jar
 
 Build the gem (includes the .jar packaged) :
 
-    rake gem
+    bundle exec rake gem
+
+
+## Testing
+
+Run tests with:
+
+    bundle exec rake
 
 
 ## Copyright

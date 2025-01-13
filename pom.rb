@@ -17,14 +17,23 @@ project do
     # 'polyglot.dump.readonly' => true
   )
 
-  dependencies do
-    dependency do
-      group_id 'org.jruby'
-      artifact_id 'jruby'
-      version '9.4.8.0'
-      scope 'provided'
+  profiles do
+    profile 'jruby-dependencies' do
+      activation do
+       active_by_default true
+      end
+      dependencies do
+        dependency do
+          group_id 'org.jruby'
+          artifact_id 'jruby'
+          version '9.4.8.0'
+          scope 'provided'
+        end
+      end
     end
+  end
 
+  dependencies do
     dependency do
       group_id 'javax.servlet'
       artifact_id 'servlet-api'
@@ -37,6 +46,7 @@ project do
       artifact_id 'jruby-rack'
       version '1.1.12'
       scope 'provided'
+      exclusion 'org.jruby', 'jruby-complete'
     end
 
     dependency do

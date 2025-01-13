@@ -20,7 +20,7 @@ module JRuby::Rack
       assert_equal File.expand_path(jar_path), JRuby::Rack::Worker::JAR_PATH
     end
     
-    context :ENV do
+    class ENVTests < Test::Unit::TestCase
       
       test "resolves key when set" do
         assert ! JRuby::Rack::Worker::ENV.key?(:foo)

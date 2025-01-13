@@ -63,7 +63,7 @@ module Delayed
       end
     end if Worker.is_a?(SyncLifecycle)
 
-    context "with backend" do
+    class WithBackendTests < Test::Unit::TestCase
 
       @@plugin = nil
 
